@@ -1,0 +1,215 @@
+body {
+  width: 400px;
+  height: auto;
+  min-height: 64px;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 600px;
+  background: white;
+}
+
+.title {
+  width: 100%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.search-wrapper {
+  width: 100%;
+  /* margin-top: 20px; */
+  height: auto;
+  min-height: 100%;
+  max-height: 451px;
+  /* background: rgba(255, 255, 255, 0.8); */
+  /* backdrop-filter: blur(20px); */
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  /* border-radius: 16px; */
+}
+
+.search-container {
+  /* padding: 16px; */
+  /* padding-top: 30px; */
+  position: relative;
+  flex-shrink: 0;
+  /* background: rgba(219, 209, 209, 0.5); */
+  /* border-bottom: 1px solid rgba(0, 0, 0, 0.05); */
+  /* border-radius: 16px 16px 0 0; */
+  width: 100%;
+}
+
+/* .search-icon {
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.search-icon img {
+  display: block;
+  width: 16px;
+  height: 16px;
+} */
+
+#searchInput {
+  /* margin: 0 auto; */
+  width: 350px;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  margin-left: 13px;
+}
+
+#searchInput:focus {
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.results-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  /* background: rgba(255, 255, 255, 0.3); */
+  transition: max-height 0.3s ease;
+  max-height: 0;
+}
+
+.results-container:not(:empty) {
+  max-height: 372px;
+}
+
+.bookmark-item {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0);
+  display: flex;
+  align-items: flex-start;
+}
+
+.bookmark-item:last-child {
+  margin-bottom: 0;
+}
+
+.bookmark-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.bookmark-item.selected {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-left: 3px solid #0066cc;
+}
+
+.bookmark-title {
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.bookmark-url {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  display: inline-block;
+  background: rgba(232, 240, 254, 0.6);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #0066cc;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.keyboard-hint {
+  /* position: fixed; */
+  /* bottom: -4px; */
+  /* left: 50%; */
+  /* transform: translateX(-50%); */
+  width: 100%;
+  opacity: 1;
+  background-color: white;
+}
+
+
+.keyboard-hint-text {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  width: 100%;
+  text-align: center;
+  background: white;
+}
+.keyboard-hint-text.show {
+  opacity: 1;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.bookmark-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.bookmark-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.bookmark-content {
+  flex: 1;
+  min-width: 0;
+} 
