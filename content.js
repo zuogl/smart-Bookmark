@@ -7,7 +7,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       title: document.title,
       description: getMetaContent('description'),
       keywords: getMetaContent('keywords'),
-      favicon: getFavicon()
+      favicon: getFavicon(),
+      pageLanguage: detectPageLanguage(),
+      userLanguage: navigator.language || navigator.userLanguage
     };
     // 发送到background处理
     chrome.runtime.sendMessage({
@@ -39,4 +41,18 @@ function getFavicon() {
   // 尝试获取默认位置的favicon.ico
   const url = new URL(window.location.href);
   return `${url.protocol}//${url.hostname}/favicon.ico`;
+}
+
+// 检测页面语言
+function detectPageLanguage() {
+  // 优先使用HTML标签的lang属性
+  const htmlLang = document.documentElement.lang;
+  if (htmlLang) return htmlLang;
+  
+  // 其次使用meta标签
+  const metaLang = document.querySelector('meta[http-equiv="content-language"]')?.content;
+  if (metaLang) return metaLang;
+  
+  // 最后使用页面内容检测
+  return document.body.textContent.length > 0 ? 'auto' : 'en';
 } 
