@@ -1,0 +1,38 @@
+{
+  "extName": {
+    "message": "Smart Bookmark Assistant",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "An AI-powered bookmark manager that automatically generates tags and provides smart search",
+    "description": "Extension description"
+  },
+  "searchPlaceholder": {
+    "message": "Search your bookmarks...",
+    "description": "Placeholder text for search input"
+  },
+  "noResults": {
+    "message": "No matching bookmarks found",
+    "description": "Message shown when no search results"
+  },
+  "keyboardHint": {
+    "message": "↑↓ Select | Enter Open | Esc Close",
+    "description": "Keyboard shortcut hints"
+  },
+  "processingBookmarks": {
+    "message": "Processing existing bookmarks...",
+    "description": "Message shown while processing bookmarks"
+  },
+  "openBookmarkSearch": {
+    "message": "Open bookmark search",
+    "description": "Command description for opening search"
+  },
+  "iconAlt": {
+    "message": "Website icon",
+    "description": "Alt text for website favicon"
+  },
+  "defaultFaviconPath": {
+    "message": "assets/default-favicon.png",
+    "description": "Path to default favicon"
+  }
+} 

@@ -1,9 +1,22 @@
+import { processHistoryBookmarks } from './historyBookmarks.js';
+
 console.log('Background service worker 已启动');
 
-// 确保service worker正确加载
-self.oninstall = (event) => {
-  console.log('Service Worker 已安装');
-};
+// 监听安装事件
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('安装类型:', details.reason);
+  if (details.reason === 'install') {
+    console.log(chrome.i18n.getMessage('processingBookmarks'));
+    
+    processHistoryBookmarks()
+      .then((result) => {
+        console.log(`书签处理完成。成功: ${result.successCount}, 失败: ${result.failureCount}`);
+      })
+      .catch(error => {
+        console.error('处理历史书签时出错:', error);
+      });
+  }
+});
 
 self.onactivate = (event) => {
   console.log('Service Worker 已激活');
@@ -51,8 +64,8 @@ chrome.bookmarks.onCreated.addListener((id, bookmark) => {
         
         console.log('Content script 注入成功');
         
-        // 等待一小段时间确保脚本初始化
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const INIT_DELAY = 100;
+        await new Promise(resolve => setTimeout(resolve, INIT_DELAY));
         
         // 然后发送消息
         chrome.tabs.sendMessage(tabs[0].id, {
@@ -74,7 +87,7 @@ chrome.bookmarks.onCreated.addListener((id, bookmark) => {
 
 // 2. 然后是功能函数
 // AI处理逻辑
-async function processWithAI(metadata) {
+export async function processWithAI(metadata) {
   console.log('准备调用AI API...');
   const userLocale = metadata.userLanguage || 'zh-CN';
   const pageLocale = metadata.pageLanguage || 'auto';
@@ -87,20 +100,20 @@ async function processWithAI(metadata) {
   - **网址：** ${metadata.url}
   - **描述：** ${metadata.description}
   - **关键词：** ${metadata.keywords}
+  - **主要标题：** ${metadata.headings}
+  - **页面内容：** ${metadata.content}
   - **页面语言：** ${pageLocale}
   - **用户语言：** ${userLocale}
   
-  **要求：**
-  1. **语言要求：** 生成的标签必须使用用户的本地语言（${userLocale}）。
+  **要��：**
+  1. **语言要求：** 生成标签必须使用用户的本地语言（${userLocale}）。
   2. **标签数量与长度：** 生成6-8个标签，每个标签由1-4个词组成。
   3. **标签维度：**
-    - **URL关键词：** 请特别关注URL中的关键词，如：
-      * 域名中的产品名、公司名、服务名
-      * 路径中的功能指示词、分类词
-      * 参数中的有意义的标识符
-    - **主题 (Topic)：** 网站的主要主题或领域，如健康、教育、金融、旅游等。
-    - **内容形式 (Content Format)：** 内容的呈现形式，如文章、视频、博客、新闻等。
-  4. **内容相关性：** 标签应准确反映页面的核心内容和用途，助于后续检索和分类。
+    - **URL关键词：** 请特别关注URL中的关键词
+    - **页���内容：** �����析正文内容的主题和关键概念
+    - **主题 (Topic)：** 网站的主要主题或领域
+    - **内容形式 (Content Format)：** 内容的呈现形式
+  4. **容相关性：** 标签应准确反映页面的核心内容和用途，助于后续检索和分类。
   5. **语言处理规则：**
      - 如果页面语言与用户语言不同，请先翻译内容再生成标签。
      - 专有名词（如品牌名、产品名）可保持原样。
@@ -110,16 +123,22 @@ async function processWithAI(metadata) {
   **示例输出：**
   github, repository, react, React框架, 开源项目, 代码仓库, 技术文档
   
-  请确保标签符合用户的语言习惯，便于检索。仅返回标签列表，无需其他解释。
+  请确保标签符合用户的语言习惯，便于检索。仅返回标签列表,无需其他解释。
   `;
 
   try {
     console.log('发送API请求...');
+    // 从配置文件或存储中获取API密钥
+    const API_KEY = 'sk-b1d3726d217d475b88c614c2ab637b7c'; // 临时方案
+    
+    // TODO: 建议创建config.js来管理密钥：
+    // import { API_KEY } from './config.js';
+    
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-b1d3726d217d475b88c614c2ab637b7c'
+        'Authorization': `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
         model: "deepseek-chat",
@@ -131,6 +150,10 @@ async function processWithAI(metadata) {
         max_tokens: 100
       })
     });
+
+    if (!response.ok) {
+      throw new APIError(`API request failed with status ${response.status}`);
+    }
 
     console.log('API响应:', await response.clone().text());
     const result = await response.json();
@@ -144,12 +167,15 @@ async function processWithAI(metadata) {
     // 存储标签和图标
     saveTags(metadata.url, tags, metadata);
   } catch (error) {
-    console.error('AI处理失败:', error);
+    if (error instanceof TypeError) {
+      throw new NetworkError('Network request failed');
+    }
+    throw error;
   }
 }
 
 // 存储标签
-function saveTags(url, tags, metadata) {
+export function saveTags(url, tags, metadata) {
   chrome.storage.local.get('bookmarkTags', (data) => {
     const bookmarkTags = data.bookmarkTags || {};
     const tagArray = Array.isArray(tags) ? tags : [];
@@ -159,4 +185,35 @@ function saveTags(url, tags, metadata) {
     };
     chrome.storage.local.set({bookmarkTags});
   });
+}
+
+console.log('图标URL:', chrome.runtime.getURL('assets/icon128.png'));
+// 验证图标文件是否存在
+fetch(chrome.runtime.getURL('assets/icon128.png'))
+  .then(response => {
+    console.log('图标文件状态:', response.status);
+  })
+  .catch(error => {
+    console.error('图标文件加载失败:', error);
+  }); 
+
+// 自定义错误类
+class NetworkError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+class APIError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+// 错误通知函数
+function notifyError(error) {
+  console.error(`Error: ${error.message}`);
+  // 可以添加用户通知逻辑
 } 

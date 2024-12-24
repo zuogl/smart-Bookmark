@@ -1,0 +1,38 @@
+{
+  "extName": {
+    "message": "智能书签助手",
+    "description": "扩展名称"
+  },
+  "extDescription": {
+    "message": "基于AI的书签管理器，自动生成标签并提供智能搜索",
+    "description": "扩展描述"
+  },
+  "searchPlaceholder": {
+    "message": "请输入你想找的收藏网址...",
+    "description": "搜索框占位文本"
+  },
+  "noResults": {
+    "message": "未找到匹配的书签",
+    "description": "无搜索结果时显示的消息"
+  },
+  "keyboardHint": {
+    "message": "↑↓ 选择 | Enter 打开 | Esc 关闭",
+    "description": "键盘快捷键提示"
+  },
+  "processingBookmarks": {
+    "message": "正在处理现有书签...",
+    "description": "处理书签时显示的消息"
+  },
+  "openBookmarkSearch": {
+    "message": "打开书签搜索",
+    "description": "打开搜索的命令描述"
+  },
+  "iconAlt": {
+    "message": "网站图标",
+    "description": "网站图标的替代文本"
+  },
+  "defaultFaviconPath": {
+    "message": "assets/default-favicon.png",
+    "description": "默认图标路径"
+  }
+} 

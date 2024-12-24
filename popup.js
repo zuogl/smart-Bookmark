@@ -1,8 +1,28 @@
 let selectedIndex = -1;
-let currentMatches = [];
+let currentMatches = null;  // 初始化为null，表示还未进行搜索
+
+// 添加防抖函数
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    return new Promise((resolve) => {
+      const later = async () => {
+        clearTimeout(timeout);
+        const result = await func(...args);
+        resolve(result);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    });
+  };
+}
+
+// 添加搜索缓存
+const searchCache = new Map();
 
 // 当输入框内容变化时搜索
 document.getElementById('searchInput').addEventListener('input', async (e) => {
+  debugger
   const keyword = e.target.value.toLowerCase().trim();
   selectedIndex = -1; // 重置选中项
   
@@ -11,21 +31,28 @@ document.getElementById('searchInput').addEventListener('input', async (e) => {
     return;
   }
   
-  // 从storage获取所有书签标签
-  const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
-  if (!bookmarkTags) {
+  try {
+    // 从storage获取所有书签标签
+    const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+    if (!bookmarkTags) {
+      showNoResults();
+      return;
+    }
+    
+    // 搜索匹配的书签
+    currentMatches = await searchBookmarksDebounced(keyword, bookmarkTags);
+    console.log('currentMatches', currentMatches);
+    displayResults(currentMatches);
+  } catch (error) {
+    console.error('处理搜索时出错:', error);
     showNoResults();
-    return;
   }
-  
-  // 搜索匹配的书签
-  currentMatches = await searchBookmarks(keyword, bookmarkTags);
-  displayResults(currentMatches);
 });
 
 // 监听键盘事件
 document.addEventListener('keydown', (e) => {
-  if (!currentMatches.length) return;
+  // 确保currentMatches存在且有长度
+  if (!Array.isArray(currentMatches) || currentMatches.length === 0) return;
   
   switch (e.key) {
     case 'ArrowUp':
@@ -69,44 +96,100 @@ function moveSelection(direction) {
 }
 
 // 搜索书签
-async function searchBookmarks(keyword, bookmarkTags) {
-  const matches = new Map(); // 使用Map来去重
-  
-  // 获取所有书签
-  const bookmarks = await chrome.bookmarks.search({});
-  
-  // 遍历书签，检查标签是否匹配
-  for (const bookmark of bookmarks) {
-    // 跳过文件夹（没有URL的项目）
-    if (!bookmark.url) continue;
-    
-    // 如果这个URL已经处理过，跳过
-    if (matches.has(bookmark.url)) continue;
-    
-    const bookmarkData = bookmarkTags[bookmark.url] || { tags: [], favicon: null };
-    const tags = bookmarkData.tags;
-    
-    // 检查标签和标题是否包含关键词
-    if ((Array.isArray(tags) && tags.some(tag => tag.toLowerCase().includes(keyword))) ||
-        bookmark.title.toLowerCase().includes(keyword)) {
-      matches.set(bookmark.url, {
-        id: bookmark.id,
-        title: bookmark.title,
-        url: bookmark.url,
-        tags: Array.isArray(tags) ? tags : [],
-        favicon: bookmarkData.favicon
-      });
+const searchBookmarksDebounced = debounce(async (keyword, bookmarkTags) => {
+  try {
+    if(searchCache.has(keyword)) {
+      const cachedResults = searchCache.get(keyword);
+      return Array.isArray(cachedResults) ? cachedResults : [];
     }
+    
+    const matches = new Map();
+    // 使用关键词进行初步搜索
+    const bookmarks = await chrome.bookmarks.search({
+      query: keyword
+    });
+    
+    // 获取所有书签树，用于补充搜索结果
+    const bookmarkTree = await chrome.bookmarks.getTree();
+    const allBookmarks = [];
+    
+    // 递归遍历书签树
+    function traverseBookmarks(nodes) {
+      for (const node of nodes) {
+        if (node.url) {
+          allBookmarks.push(node);
+        }
+        if (node.children) {
+          traverseBookmarks(node.children);
+        }
+      }
+    }
+    
+    traverseBookmarks(bookmarkTree);
+    
+    // 合并两种搜索结果
+    const searchSet = new Set([...bookmarks, ...allBookmarks]);
+    
+    // 遍历所有唯一的书签
+    for (const bookmark of searchSet) {
+      // 跳过文件夹（没有URL的项目）
+      if (!bookmark.url) continue;
+      
+      // 如果这个URL已经处理过，跳过
+      if (matches.has(bookmark.url)) continue;
+      
+      const bookmarkData = bookmarkTags[bookmark.url] || { tags: [], favicon: null };
+      const tags = bookmarkData.tags;
+      
+      // 改进搜索匹配逻辑
+      const titleMatch = bookmark.title.toLowerCase().includes(keyword);
+      const urlMatch = bookmark.url.toLowerCase().includes(keyword);
+      const tagMatch = Array.isArray(tags) && tags.some(tag => 
+        tag.toLowerCase().includes(keyword)
+      );
+      
+      if (titleMatch || urlMatch || tagMatch) {
+        matches.set(bookmark.url, {
+          id: bookmark.id,
+          title: bookmark.title,
+          url: bookmark.url,
+          tags: Array.isArray(tags) ? tags : [],
+          favicon: bookmarkData.favicon,
+          // 添加匹配得分以便排序
+          score: (titleMatch ? 3 : 0) + (urlMatch ? 2 : 0) + (tagMatch ? 1 : 0)
+        });
+      }
+    }
+    
+    // 根据匹配得分排序结果
+    const results = Array.from(matches.values()).sort((a, b) => b.score - a.score);
+    searchCache.set(keyword, results);
+    console.log(`找到 ${results.length} 个匹配结果`);
+    return results;
+  } catch (error) {
+    console.error('搜索书签时出错:', error);
+    return [];
   }
-  
-  return Array.from(matches.values());
-}
+}, 300);
 
 // 显示搜索结果
 function displayResults(matches) {
-  const resultsContainer = document.getElementById('results');
+  // 更严格的类型检查
+  if (!matches || !Array.isArray(matches)) {
+    matches = [];
+  }
   
+  // 更新全局变量
+  currentMatches = matches;
+  
+  const resultsContainer = document.getElementById('results');
   const keyboardHint = document.querySelector('.keyboard-hint-text');
+  
+  if (!resultsContainer || !keyboardHint) {
+    console.error('找不到必要的DOM元素');
+    return;
+  }
+  
   resultsContainer.innerHTML = '';
   
   if (matches.length === 0) {
@@ -128,8 +211,8 @@ function displayResults(matches) {
     
     item.innerHTML = `
       <div class="bookmark-icon">
-        <img src="${getFaviconUrl(bookmark.url, bookmark.favicon)}" alt="icon" 
-             onerror="this.src='assets/default-favicon.png'">
+        <img src="${getFaviconUrl(bookmark.url, bookmark.favicon)}" alt="${chrome.i18n.getMessage('iconAlt')}" 
+             onerror="this.src='${chrome.i18n.getMessage('defaultFaviconPath')}'">
       </div>
       <div class="bookmark-content">
         <div class="bookmark-title">${bookmark.title}</div>
@@ -168,7 +251,7 @@ function displayResults(matches) {
 // 显示无结果提示
 function showNoResults() {
   const resultsContainer = document.getElementById('results');
-  resultsContainer.innerHTML = '<div class="no-results">未找到匹配的书签</div>';
+  resultsContainer.innerHTML = `<div class="no-results">${chrome.i18n.getMessage('noResults')}</div>`;
 }
 
 // 清空结果
@@ -178,8 +261,22 @@ function clearResults() {
   keyboardHint.classList.remove('show');
 }
 
-// 页面加载时聚焦到搜索框
+// 初始化国际化文本
+function initializeI18n() {
+  // 替换所有带有i18n属性的元素的文本
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const messageKey = element.getAttribute('data-i18n');
+    element.textContent = chrome.i18n.getMessage(messageKey);
+  });
+  
+  // 替换搜索框占位符
+  document.getElementById('searchInput').placeholder = 
+    chrome.i18n.getMessage('searchPlaceholder');
+}
+
+// 页面加载时
 document.addEventListener('DOMContentLoaded', () => {
+  initializeI18n();
   document.getElementById('searchInput').focus();
 });
 
@@ -200,4 +297,5 @@ function getFaviconUrl(url, storedFavicon) {
   } catch (e) {
     return 'assets/default-favicon.png';
   }
-} 
+}
+ 
