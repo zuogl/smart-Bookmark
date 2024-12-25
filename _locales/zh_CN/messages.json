@@ -16,7 +16,7 @@
     "description": "无搜索结果时显示的消息"
   },
   "keyboardHint": {
-    "message": "↑↓ 选择 | Enter 打开 | Esc 关闭",
+    "message": "↑↓ 选择 | Enter 打开 | Esc 关闭 | Ctrl+Shift+S/⌘⇧S 快速搜索",
     "description": "键盘快捷键提示"
   },
   "processingBookmarks": {

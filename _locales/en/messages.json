@@ -16,7 +16,7 @@
     "description": "Message shown when no search results"
   },
   "keyboardHint": {
-    "message": "↑↓ Select | Enter Open | Esc Close",
+    "message": "↑↓ Select | Enter Open | Esc Close | Ctrl+Shift+S/⌘⇧S Quick Search",
     "description": "Keyboard shortcut hints"
   },
   "processingBookmarks": {

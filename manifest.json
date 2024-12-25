@@ -40,10 +40,10 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Ctrl+Shift+L",
-        "mac": "Command+Shift+L"
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
       },
-      "description": "打开书签搜索"
+      "description": "__MSG_openBookmarkSearch__"
     }
   },
   "web_accessible_resources": [{

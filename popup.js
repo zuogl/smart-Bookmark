@@ -22,11 +22,11 @@ const searchCache = new Map();
 
 // 当输入框内容变化时搜索
 document.getElementById('searchInput').addEventListener('input', async (e) => {
-  debugger
-  const keyword = e.target.value.toLowerCase().trim();
+  const searchText = e.target.value.toLowerCase().trim();
+  console.log('搜索文本:', searchText);
   selectedIndex = -1; // 重置选中项
   
-  if (!keyword) {
+  if (!searchText) {
     clearResults();
     return;
   }
@@ -34,17 +34,21 @@ document.getElementById('searchInput').addEventListener('input', async (e) => {
   try {
     // 从storage获取所有书签标签
     const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+    console.log('获取到的书签标签:', bookmarkTags);
     if (!bookmarkTags) {
       showNoResults();
       return;
     }
     
+    // 将搜索文本分割成关键词数组
+    const keywords = searchText.split(/\s+/).filter(Boolean);
+    
     // 搜索匹配的书签
-    currentMatches = await searchBookmarksDebounced(keyword, bookmarkTags);
-    console.log('currentMatches', currentMatches);
-    displayResults(currentMatches);
+    currentMatches = await searchBookmarksDebounced(keywords, bookmarkTags);
+    console.log('搜索结果:', currentMatches);
+    displayResults(currentMatches, keywords);
   } catch (error) {
-    console.error('处理搜索时出错:', error);
+    console.error('搜索出错:', error);
     showNoResults();
   }
 });
@@ -96,20 +100,18 @@ function moveSelection(direction) {
 }
 
 // 搜索书签
-const searchBookmarksDebounced = debounce(async (keyword, bookmarkTags) => {
+const searchBookmarksDebounced = debounce(async (keywords, bookmarkTags) => {
   try {
-    if(searchCache.has(keyword)) {
-      const cachedResults = searchCache.get(keyword);
+    // 使用关键词数组作为缓存key
+    const cacheKey = keywords.join(',');
+    if(searchCache.has(cacheKey)) {
+      const cachedResults = searchCache.get(cacheKey);
       return Array.isArray(cachedResults) ? cachedResults : [];
     }
     
     const matches = new Map();
-    // 使用关键词进行初步搜索
-    const bookmarks = await chrome.bookmarks.search({
-      query: keyword
-    });
     
-    // 获取所有书签树，用于补充搜索结果
+    // 获取所有书签树
     const bookmarkTree = await chrome.bookmarks.getTree();
     const allBookmarks = [];
     
@@ -127,11 +129,8 @@ const searchBookmarksDebounced = debounce(async (keyword, bookmarkTags) => {
     
     traverseBookmarks(bookmarkTree);
     
-    // 合并两种搜索结果
-    const searchSet = new Set([...bookmarks, ...allBookmarks]);
-    
-    // 遍历所有唯一的书签
-    for (const bookmark of searchSet) {
+    // 遍历所有书签
+    for (const bookmark of allBookmarks) {
       // 跳过文件夹（没有URL的项目）
       if (!bookmark.url) continue;
       
@@ -141,29 +140,43 @@ const searchBookmarksDebounced = debounce(async (keyword, bookmarkTags) => {
       const bookmarkData = bookmarkTags[bookmark.url] || { tags: [], favicon: null };
       const tags = bookmarkData.tags;
       
-      // 改进搜索匹配逻辑
-      const titleMatch = bookmark.title.toLowerCase().includes(keyword);
-      const urlMatch = bookmark.url.toLowerCase().includes(keyword);
-      const tagMatch = Array.isArray(tags) && tags.some(tag => 
-        tag.toLowerCase().includes(keyword)
-      );
+      // 检查每个关键词是否都能匹配到
+      const allKeywordsMatch = keywords.every(keyword => {
+        const title = bookmark.title.toLowerCase();
+        const url = bookmark.url.toLowerCase();
+        const lowercaseTags = Array.isArray(tags) ? tags.map(tag => tag.toLowerCase()) : [];
+        
+        return title.includes(keyword) || 
+               url.includes(keyword) || 
+               lowercaseTags.some(tag => tag.includes(keyword));
+      });
       
-      if (titleMatch || urlMatch || tagMatch) {
+      if (allKeywordsMatch) {
+        // 计算匹配分数
+        let score = 0;
+        keywords.forEach(keyword => {
+          // 标题匹配分数最高
+          if (bookmark.title.toLowerCase().includes(keyword)) score += 3;
+          // URL匹配分数其次
+          if (bookmark.url.toLowerCase().includes(keyword)) score += 2;
+          // 标签匹配分数最低
+          if (tags.some(tag => tag.toLowerCase().includes(keyword))) score += 1;
+        });
+        
         matches.set(bookmark.url, {
           id: bookmark.id,
           title: bookmark.title,
           url: bookmark.url,
           tags: Array.isArray(tags) ? tags : [],
           favicon: bookmarkData.favicon,
-          // 添加匹配得分以便排序
-          score: (titleMatch ? 3 : 0) + (urlMatch ? 2 : 0) + (tagMatch ? 1 : 0)
+          score: score
         });
       }
     }
     
     // 根据匹配得分排序结果
     const results = Array.from(matches.values()).sort((a, b) => b.score - a.score);
-    searchCache.set(keyword, results);
+    searchCache.set(cacheKey, results);
     console.log(`找到 ${results.length} 个匹配结果`);
     return results;
   } catch (error) {
@@ -172,79 +185,116 @@ const searchBookmarksDebounced = debounce(async (keyword, bookmarkTags) => {
   }
 }, 300);
 
+// 搜索书签的函数
+async function searchBookmarks(keywords, bookmarkTags) {
+  // 获取所有书签
+  const bookmarks = await chrome.bookmarks.getTree();
+  const matches = [];
+  
+  // 递归搜索书签树
+  function searchBookmarkNode(node) {
+    if (node.url) {
+      const title = node.title.toLowerCase();
+      const url = node.url.toLowerCase();
+      const tags = (bookmarkTags[node.url]?.tags || []).map(tag => tag.toLowerCase());
+      
+      // 检查是否所有关键词都匹配
+      const allKeywordsMatch = keywords.every(keyword => {
+        return title.includes(keyword) || 
+               url.includes(keyword) || 
+               tags.some(tag => tag.includes(keyword));
+      });
+      
+      if (allKeywordsMatch) {
+        matches.push({
+          id: node.id,
+          title: node.title,
+          url: node.url,
+          tags: bookmarkTags[node.url]?.tags || [],
+          favicon: bookmarkTags[node.url]?.favicon
+        });
+      }
+    }
+    
+    if (node.children) {
+      node.children.forEach(child => searchBookmarkNode(child));
+    }
+  }
+  
+  bookmarks.forEach(node => searchBookmarkNode(node));
+  return matches;
+}
+
 // 显示搜索结果
-function displayResults(matches) {
-  // 更严格的类型检查
-  if (!matches || !Array.isArray(matches)) {
-    matches = [];
-  }
-  
-  // 更新全局变量
-  currentMatches = matches;
-  
+function displayResults(matches, keywords) {
   const resultsContainer = document.getElementById('results');
-  const keyboardHint = document.querySelector('.keyboard-hint-text');
-  
-  if (!resultsContainer || !keyboardHint) {
-    console.error('找不到必要的DOM元素');
-    return;
-  }
-  
   resultsContainer.innerHTML = '';
   
-  if (matches.length === 0) {
+  if (!matches || matches.length === 0) {
     showNoResults();
-    keyboardHint.classList.remove('show');
     return;
   }
-  
-  // 显示键盘提示
-  keyboardHint.classList.add('show');
   
   // 默认选中第一项
   selectedIndex = 0;
   
   matches.forEach((bookmark, index) => {
-    const item = document.createElement('div');
-    item.className = 'bookmark-item';
-    if (index === selectedIndex) item.classList.add('selected');
+    const bookmarkElement = document.createElement('div');
+    bookmarkElement.className = 'bookmark-item';
+    // 如果是第一项，添加selected类
+    if (index === 0) {
+      bookmarkElement.classList.add('selected');
+    }
+    bookmarkElement.setAttribute('data-index', index);
     
-    item.innerHTML = `
-      <div class="bookmark-icon">
-        <img src="${getFaviconUrl(bookmark.url, bookmark.favicon)}" alt="${chrome.i18n.getMessage('iconAlt')}" 
-             onerror="this.src='${chrome.i18n.getMessage('defaultFaviconPath')}'">
-      </div>
+    // 高亮显示匹配的关键词
+    let title = bookmark.title;
+    let url = bookmark.url;
+    
+    keywords.forEach(keyword => {
+      const regex = new RegExp(keyword, 'gi');
+      title = title.replace(regex, match => `<mark>${match}</mark>`);
+      url = url.replace(regex, match => `<mark>${match}</mark>`);
+    });
+    
+    // 获取favicon URL
+    const faviconUrl = getFaviconUrl(bookmark.url, bookmark.favicon);
+    
+    bookmarkElement.innerHTML = `
       <div class="bookmark-content">
-        <div class="bookmark-title">${bookmark.title}</div>
-        <div class="bookmark-url">${bookmark.url}</div>
-        <div class="bookmark-tags">
-          ${Array.isArray(bookmark.tags) ? bookmark.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}
+        <img class="favicon" src="${faviconUrl}" alt="" onerror="this.src='assets/default-favicon.png'">
+        <div class="bookmark-info">
+          <div class="bookmark-title">${title}</div>
+          <div class="bookmark-url">${url}</div>
+          <div class="bookmark-tags">
+            ${bookmark.tags.map(tag => {
+              let tagText = tag;
+              keywords.forEach(keyword => {
+                const regex = new RegExp(keyword, 'gi');
+                tagText = tagText.replace(regex, match => `<mark>${match}</mark>`);
+              });
+              return `<span class="tag">${tagText}</span>`;
+            }).join('')}
+          </div>
         </div>
       </div>
     `;
     
-    // 点击打开书签
-    item.addEventListener('click', () => {
+    bookmarkElement.addEventListener('click', () => {
       chrome.tabs.create({ url: bookmark.url });
       window.close();
     });
     
-    // 鼠标悬停时更新选中项
-    item.addEventListener('mouseenter', () => {
-      const oldIndex = selectedIndex;
-      selectedIndex = index;
-      const items = document.querySelectorAll('.bookmark-item');
-      if (oldIndex >= 0) items[oldIndex].classList.remove('selected');
-      item.classList.add('selected');
-    });
-    
-    resultsContainer.appendChild(item);
+    resultsContainer.appendChild(bookmarkElement);
   });
   
-  // 确保第一个选中项可见
-  if (matches.length > 0) {
-    const firstItem = document.querySelector('.bookmark-item');
-    firstItem.scrollIntoView({ block: 'nearest' });
+  // 确保第一项可见
+  const firstItem = resultsContainer.querySelector('.bookmark-item');
+  if (firstItem) {
+    firstItem.scrollIntoView({
+      behavior: 'auto',
+      block: 'nearest'
+    });
   }
 }
 
@@ -263,10 +313,13 @@ function clearResults() {
 
 // 初始化国际化文本
 function initializeI18n() {
-  // 替换所有带有i18n属性的元素的文本
+  // 替换所有带有data-i18n属性的元素的文本
   document.querySelectorAll('[data-i18n]').forEach(element => {
     const messageKey = element.getAttribute('data-i18n');
-    element.textContent = chrome.i18n.getMessage(messageKey);
+    const message = chrome.i18n.getMessage(messageKey);
+    if (message) {
+      element.textContent = message;
+    }
   });
   
   // 替换搜索框占位符
