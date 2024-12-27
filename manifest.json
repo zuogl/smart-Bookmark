@@ -57,5 +57,6 @@
       "assets/icon128.png"
     ],
     "matches": ["<all_urls>"]
-  }]
+  }],
+  "privacy_policy": "https://zuogl.github.io/smart-Bookmark-privacy/"
 } 
