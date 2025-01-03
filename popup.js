@@ -24,18 +24,189 @@ function debounce(func, wait) {
 // 添加搜索缓存
 const searchCache = new Map();
 
+// 命令处理相关变量和常量
+const COMMANDS = {
+  ALL: '@all',
+  LATEST: '@latest',
+  LATEST_WITH_COUNT: /^@latest\s+(\d+)$/,
+  EXPORT: '@export',
+  EXPORT_WITH_FORMAT: /^@export\s+(json|html)$/i,
+  IMPORT: '@import'
+};
+
+// 导出格式枚举
+const EXPORT_FORMATS = {
+  CSV: 'csv',
+  JSON: 'json',
+  HTML: 'html'
+};
+
+// 检查输入是否是命令
+function isCommand(input) {
+  return input.startsWith('@');
+}
+
+// 处理 @all 命令
+async function handleAllCommand() {
+  try {
+    // 获取所有书签
+    const bookmarks = await chrome.bookmarks.getTree();
+    // 获取所有标签信息
+    const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+    
+    // 提取所有书签并扁平化
+    const allBookmarks = [];
+    
+    function extractBookmarks(nodes) {
+      for (const node of nodes) {
+        if (node.url) {
+          allBookmarks.push({
+            id: node.id,
+            title: node.title,
+            url: node.url,
+            dateAdded: node.dateAdded,
+            tags: bookmarkTags[node.url]?.tags || [],
+            favicon: bookmarkTags[node.url]?.favicon
+          });
+        }
+        if (node.children) {
+          extractBookmarks(node.children);
+        }
+      }
+    }
+    
+    extractBookmarks(bookmarks);
+    
+    // 按添加时间倒序排序
+    allBookmarks.sort((a, b) => b.dateAdded - a.dateAdded);
+    
+    // 更新当前匹配结果并显示
+    currentMatches = allBookmarks;
+    displayResults(currentMatches, []);
+    
+  } catch (error) {
+    console.error('处理 @all 命令失败:', error);
+    showNoResults();
+  }
+}
+
+// 处理 @latest 命令
+async function handleLatestCommand(count = 1) {
+  try {
+    // 获取最近的书签
+    const recentBookmarks = await chrome.bookmarks.getRecent(count);
+    // 获取所有标签信息
+    const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+    
+    // 格式化书签数据
+    const formattedBookmarks = recentBookmarks.map(bookmark => ({
+      id: bookmark.id,
+      title: bookmark.title,
+      url: bookmark.url,
+      dateAdded: bookmark.dateAdded,
+      tags: bookmarkTags[bookmark.url]?.tags || [],
+      favicon: bookmarkTags[bookmark.url]?.favicon
+    }));
+    
+    // 更新当前匹配结果并显示
+    currentMatches = formattedBookmarks;
+    displayResults(currentMatches, [], {
+      title: count === 1 
+        ? chrome.i18n.getMessage('latestBookmarkTitle')
+        : chrome.i18n.getMessage('latestBookmarksTitle', [count.toString()])
+    });
+    
+  } catch (error) {
+    console.error('处理 @latest 命令失败:', error);
+    showNoResults();
+  }
+}
+
+// 修改搜索处理函数
+async function handleSearch(value) {
+  // 检查是否是命令
+  if (isCommand(value.trim())) {
+    const command = value.trim().toLowerCase();
+    
+    switch (command) {
+      case COMMANDS.ALL:
+        await handleAllCommand();
+        return;
+      case command === COMMANDS.LATEST:
+        await handleLatestCommand();
+        return;
+      case COMMANDS.LATEST_WITH_COUNT.test(command):
+        const match = command.match(COMMANDS.LATEST_WITH_COUNT);
+        const count = parseInt(match[1], 10);
+        if (count > 0) {
+          await handleLatestCommand(count);
+        } else {
+          showNoResults();
+        }
+        return;
+      case command === COMMANDS.EXPORT:
+        await handleExportCommand();
+        return;
+      case COMMANDS.EXPORT_WITH_FORMAT.test(command):
+        const formatMatch = command.match(COMMANDS.EXPORT_WITH_FORMAT);
+        const format = formatMatch[1].toLowerCase();
+        await handleExportCommand(format);
+        return;
+      default:
+        showNoResults();
+        return;
+    }
+  }
+
+  // 原有的搜索逻辑
+  const keywords = value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (keywords.length === 0) {
+    clearResults();
+    return;
+  }
+  
+  currentMatches = await searchBookmarksDebounced(keywords);
+  displayResults(currentMatches, keywords);
+}
+
 // 当输入框内容变化时搜索
 document.getElementById('searchInput').addEventListener('input', async (e) => {
   const searchText = e.target.value.toLowerCase().trim();
   console.log('搜索文本:', searchText);
   selectedIndex = -1; // 重置选中项
   
-  if (!searchText) {
-    clearResults();
-    return;
-  }
-  
   try {
+    // 检查是否是命令
+    if (isCommand(searchText)) {
+      const command = searchText.toLowerCase();
+      switch (true) {  // 使用 switch(true) 来支持正则匹配
+        case command === COMMANDS.ALL:
+          await handleAllCommand();
+          return;
+        case command === COMMANDS.LATEST:
+          await handleLatestCommand();
+          return;
+        case COMMANDS.LATEST_WITH_COUNT.test(command):
+          const match = command.match(COMMANDS.LATEST_WITH_COUNT);
+          const count = parseInt(match[1], 10);
+          if (count > 0) {
+            await handleLatestCommand(count);
+          } else {
+            showNoResults();
+          }
+          return;
+        default:
+          showNoResults();
+          return;
+      }
+    }
+
+    // 如果不是命令且搜索文本为空，清空结果
+    if (!searchText) {
+      clearResults();
+      return;
+    }
+
     // 从storage获取所有书签标签
     const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
     console.log('获取到的书签标签:', bookmarkTags);
@@ -230,13 +401,21 @@ async function searchBookmarks(keywords, bookmarkTags) {
 }
 
 // 显示搜索结果
-function displayResults(matches, keywords) {
+function displayResults(matches, keywords, options = {}) {
   const resultsContainer = document.getElementById('results');
   resultsContainer.innerHTML = '';
   
   if (!matches || matches.length === 0) {
     showNoResults();
     return;
+  }
+  
+  // 如果是显示所有书签或有自定义标题，添加标题
+  if ((keywords.length === 0 || options.title) && matches.length > 0) {
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'results-title';
+    titleDiv.textContent = options.title || chrome.i18n.getMessage('allBookmarksTitle');
+    resultsContainer.appendChild(titleDiv);
   }
   
   selectedIndex = 0;
@@ -414,6 +593,14 @@ function displayResults(matches, keywords) {
     });
     
     resultsContainer.appendChild(bookmarkElement);
+    
+    // 如果有添加时间，显示时间信息
+    if (bookmark.dateAdded) {
+      const dateDiv = document.createElement('div');
+      dateDiv.className = 'bookmark-date';
+      dateDiv.textContent = new Date(bookmark.dateAdded).toLocaleString();
+      infoDiv.insertBefore(dateDiv, tagsDiv);
+    }
   });
   
   // 确保第一项可见
@@ -486,6 +673,23 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     window.close();
+  } else if (e.key === 'Enter') {
+    const searchInput = document.getElementById('searchInput');
+    const command = searchInput.value.trim().toLowerCase();
+    
+    // 处理导出命令
+    if (command === COMMANDS.EXPORT) {
+      handleExportCommand();
+      return;
+    } else if (COMMANDS.EXPORT_WITH_FORMAT.test(command)) {
+      const formatMatch = command.match(COMMANDS.EXPORT_WITH_FORMAT);
+      const format = formatMatch[1].toLowerCase();
+      handleExportCommand(format);
+      return;
+    } else if (command === COMMANDS.IMPORT) {
+      handleImportCommand();
+      return;
+    }
   }
 });
 
@@ -679,4 +883,295 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// 处理导出命令
+async function handleExportCommand(format = EXPORT_FORMATS.CSV) {
+  try {
+    // 获取所有书签和标签信息
+    const bookmarks = await chrome.bookmarks.getTree();
+    const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+    
+    // 提取所有书签数据
+    const bookmarkData = [];
+    
+    function extractBookmarks(nodes) {
+      for (const node of nodes) {
+        if (node.url) {
+          bookmarkData.push({
+            title: node.title,
+            url: node.url,
+            dateAdded: node.dateAdded,
+            tags: bookmarkTags[node.url]?.tags || [],
+            favicon: bookmarkTags[node.url]?.favicon
+          });
+        }
+        if (node.children) {
+          extractBookmarks(node.children);
+        }
+      }
+    }
+    
+    extractBookmarks(bookmarks);
+    
+    // 根据不同格式导出
+    switch (format.toLowerCase()) {
+      case EXPORT_FORMATS.CSV:
+        exportAsCSV(bookmarkData);
+        break;
+      case EXPORT_FORMATS.JSON:
+        exportAsJSON(bookmarkData);
+        break;
+      case EXPORT_FORMATS.HTML:
+        exportAsHTML(bookmarkData);
+        break;
+    }
+    
+    // 显示导出成功消息
+    showExportSuccess(format);
+    
+  } catch (error) {
+    console.error('导出失败:', error);
+    showExportError(format);
+  }
+}
+
+// CSV 导出
+function exportAsCSV(bookmarkData) {
+  // CSV 头部
+  const headers = ['Title', 'URL', 'Date Added', 'Tags'];
+  const csvContent = [
+    headers.join(','),
+    ...bookmarkData.map(bookmark => [
+      // 处理可能包含逗号的字段
+      `"${bookmark.title.replace(/"/g, '""')}"`,
+      `"${bookmark.url}"`,
+      `"${new Date(bookmark.dateAdded).toLocaleString()}"`,
+      `"${bookmark.tags.join(';')}"`,
+    ].join(','))
+  ].join('\n');
+  
+  downloadFile(csvContent, 'bookmarks.csv', 'text/csv');
+}
+
+// JSON 导出
+function exportAsJSON(bookmarkData) {
+  const jsonContent = JSON.stringify(bookmarkData, null, 2);
+  downloadFile(jsonContent, 'bookmarks.json', 'application/json');
+}
+
+// HTML 导出
+function exportAsHTML(bookmarkData) {
+  const htmlContent = `
+<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+${bookmarkData.map(bookmark => `
+  <DT><A HREF="${bookmark.url}" ADD_DATE="${Math.floor(bookmark.dateAdded/1000)}">${bookmark.title}</A>
+  ${bookmark.tags.length ? `<DD>Tags: ${bookmark.tags.join(', ')}` : ''}
+`).join('')}
+</DL><p>`;
+
+  downloadFile(htmlContent, 'bookmarks.html', 'text/html');
+}
+
+// 通用文件下载函数
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 显示导出成功消息
+function showExportSuccess(format) {
+  const resultsContainer = document.getElementById('results');
+  resultsContainer.innerHTML = `
+    <div class="export-success">
+      ${chrome.i18n.getMessage('exportSuccess', [format.toUpperCase()])}
+    </div>
+  `;
+}
+
+// 显示导出错误消息
+function showExportError(format) {
+  const resultsContainer = document.getElementById('results');
+  resultsContainer.innerHTML = `
+    <div class="export-error">
+      ${chrome.i18n.getMessage('exportError', [format.toUpperCase()])}
+    </div>
+  `;
+}
+
+// 处理导入命令
+async function handleImportCommand() {
+  try {
+    // 创建文件输入元素
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.json,.html';
+    
+    // 监听文件选择
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        // 根据文件类型选择不同的导入处理函数
+        switch (file.type) {
+          case 'text/csv':
+            await importFromCSV(file);
+            break;
+          case 'application/json':
+            await importFromJSON(file);
+            break;
+          case 'text/html':
+            await importFromHTML(file);
+            break;
+          default:
+            throw new Error('不支持的文件格式');
+        }
+        
+        // 显示导入成功消息
+        showImportSuccess();
+      } catch (error) {
+        console.error('导入失败:', error);
+        showImportError(error.message);
+      }
+    };
+    
+    // 触发文件选择
+    input.click();
+  } catch (error) {
+    console.error('导入命令处理失败:', error);
+    showImportError(error.message);
+  }
+}
+
+// 从CSV文件导入
+async function importFromCSV(file) {
+  const text = await file.text();
+  const lines = text.split('\n');
+  const headers = lines[0].split(',');
+  
+  // 验证CSV格式
+  if (!headers.includes('Title') || !headers.includes('URL')) {
+    throw new Error('无效的CSV格式');
+  }
+  
+  const bookmarks = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    
+    const values = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)
+      .map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
+    
+    const bookmark = {
+      title: values[headers.indexOf('Title')],
+      url: values[headers.indexOf('URL')],
+      tags: values[headers.indexOf('Tags')]?.split(';').filter(Boolean) || []
+    };
+    bookmarks.push(bookmark);
+  }
+  
+  await importBookmarks(bookmarks);
+}
+
+// 从JSON文件导入
+async function importFromJSON(file) {
+  const text = await file.text();
+  const bookmarks = JSON.parse(text);
+  
+  // 验证JSON格式
+  if (!Array.isArray(bookmarks) || !bookmarks.every(b => b.title && b.url)) {
+    throw new Error('无效的JSON格式');
+  }
+  
+  await importBookmarks(bookmarks);
+}
+
+// 从HTML文件导入
+async function importFromHTML(file) {
+  const text = await file.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'text/html');
+  
+  const bookmarks = [];
+  const links = doc.getElementsByTagName('a');
+  
+  for (const link of links) {
+    const bookmark = {
+      title: link.textContent,
+      url: link.href,
+      tags: []
+    };
+    
+    // 尝试获取标签信息
+    const dd = link.parentElement.nextElementSibling;
+    if (dd && dd.tagName === 'DD' && dd.textContent.startsWith('Tags:')) {
+      bookmark.tags = dd.textContent.replace('Tags:', '').split(',').map(t => t.trim());
+    }
+    
+    bookmarks.push(bookmark);
+  }
+  
+  await importBookmarks(bookmarks);
+}
+
+// 通用导入处理函数
+async function importBookmarks(bookmarks) {
+  // 获取现有标签数据
+  const { bookmarkTags } = await chrome.storage.local.get('bookmarkTags');
+  const updatedTags = { ...bookmarkTags };
+  
+  // 导入每个书签
+  for (const bookmark of bookmarks) {
+    try {
+      // 创建书签
+      const newBookmark = await chrome.bookmarks.create({
+        title: bookmark.title,
+        url: bookmark.url
+      });
+      
+      // 保存标签
+      if (bookmark.tags && bookmark.tags.length > 0) {
+        updatedTags[bookmark.url] = {
+          tags: bookmark.tags,
+          favicon: bookmark.favicon
+        };
+      }
+    } catch (error) {
+      console.error(`导入书签失败: ${bookmark.url}`, error);
+    }
+  }
+  
+  // 更新存储的标签数据
+  await chrome.storage.local.set({ bookmarkTags: updatedTags });
+}
+
+// 显示导入成功消息
+function showImportSuccess() {
+  const resultsContainer = document.getElementById('results');
+  resultsContainer.innerHTML = `
+    <div class="import-success">
+      ${chrome.i18n.getMessage('importSuccess')}
+    </div>
+  `;
+}
+
+// 显示导入错误消息
+function showImportError(error) {
+  const resultsContainer = document.getElementById('results');
+  resultsContainer.innerHTML = `
+    <div class="import-error">
+      ${chrome.i18n.getMessage('importError', [error])}
+    </div>
+  `;
+}
  

@@ -54,5 +54,61 @@
   "cancel": {
     "message": "取消",
     "description": "取消按钮文本"
+  },
+  "commandNotFound": {
+    "message": "未知命令",
+    "description": "当输入未知命令时显示的消息"
+  },
+  "allBookmarksTitle": {
+    "message": "所有书签（按时间倒序）",
+    "description": "@all 命令的结果标题"
+  },
+  "latestBookmarkTitle": {
+    "message": "最新添加的书签",
+    "description": "@latest 命令的结果标题（单个）"
+  },
+  "latestBookmarksTitle": {
+    "message": "最新添加的 $COUNT$ 个书签",
+    "description": "@latest n 命令的结果标题",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "exportSuccess": {
+    "message": "书签已成功导出为 $FORMAT$ 格式",
+    "description": "导出成功消息",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "CSV"
+      }
+    }
+  },
+  "exportError": {
+    "message": "导出 $FORMAT$ 格式失败",
+    "description": "导出失败消息",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "CSV"
+      }
+    }
+  },
+  "importSuccess": {
+    "message": "书签导入成功",
+    "description": "导入成功消息"
+  },
+  "importError": {
+    "message": "导入失败：$ERROR$",
+    "description": "导入失败消息",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "无效的文件格式"
+      }
+    }
   }
 } 
