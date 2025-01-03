@@ -15,10 +15,10 @@
       </div> -->
       <input type="text" 
              id="searchInput" 
-             aria-label="${chrome.i18n.getMessage('searchInputLabel')}"
+             aria-label="搜索书签"
              role="searchbox"
              aria-expanded="false"
-             placeholder="__MSG_searchPlaceholder__">
+             placeholder="请输入你想找的收藏网址">
     </div>
     <div class="results-container" id="results">
       <!-- 搜索结果将动态插入这里 -->
@@ -26,6 +26,18 @@
   </div>
   <div class="keyboard-hint">
     <div class="keyboard-hint-text" data-i18n="keyboardHint"></div>
+  </div>
+  <div id="tagEditModal" class="modal">
+    <div class="modal-content">
+      <h3 data-i18n="addTag">添加标签</h3>
+      <div class="modal-input-group">
+        <input type="text" id="newTagInput" data-i18n-placeholder="addTagPlaceholder">
+        <div class="modal-buttons">
+          <button id="saveTagBtn" data-i18n="save">保存</button>
+          <button id="cancelTagBtn" data-i18n="cancel">取消</button>
+        </div>
+      </div>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

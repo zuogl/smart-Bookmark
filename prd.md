@@ -180,6 +180,11 @@ const response = await fetch('https://api.openai.com/v1/completions', {
 
 如需调整，请随时提出！
 
+<!-- todo -->
+1. @all 全部 last 查看最近的一个书签  export  import 
+2. 自己添加、修改标签
+3. 更好的提示
+
 
 v1.0
 基础功能实现

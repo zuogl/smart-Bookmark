@@ -4,11 +4,11 @@
     "description": "扩展名称"
   },
   "extDescription": {
-    "message": "基于AI的书签管理器，自动生成标签并提供智能搜索。所有数据存储在本地，仅在生成标签时调用AI服务。隐私政策：https://zuogl.github.io/ZuoglTools/privacy/browser-extensions/SmartBookmarkAssistantZH_CN.html",
+    "message": "基于AI的书签管理器，自动生成标签并提供智能搜索。隐私政策：https://zuogl.github.io/ZuoglTools/privacy/browser-extensions/SmartBookmarkAssistantZH_CN.html",
     "description": "扩展描述"
   },
   "searchPlaceholder": {
-    "message": "请输入你想找的收藏网址...",
+    "message": "请输入你想找的收藏网址",
     "description": "搜索框占位文本"
   },
   "noResults": {
@@ -34,5 +34,25 @@
   "defaultFaviconPath": {
     "message": "assets/default-favicon.png",
     "description": "默认图标路径"
+  },
+  "editTags": {
+    "message": "编辑标签",
+    "description": "编辑标签模态框标题"
+  },
+  "addTag": {
+    "message": "添加标签",
+    "description": "添加标签模态框标题"
+  },
+  "addTagPlaceholder": {
+    "message": "输入标签后按回车或点击保存",
+    "description": "添加标签输入框占位符"
+  },
+  "save": {
+    "message": "保存",
+    "description": "保存按钮文本"
+  },
+  "cancel": {
+    "message": "取消",
+    "description": "取消按钮文本"
   }
 } 

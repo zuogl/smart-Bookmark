@@ -161,6 +161,58 @@ body {
   color: #0066cc;
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+  position: relative;
+  padding-right: 24px;
+  user-select: none;
+}
+
+.tag.editing {
+  padding-right: 8px;
+}
+
+.tag.editing .tag-delete {
+  display: none;
+}
+
+.tag-edit-input {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: #0066cc;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+}
+
+.tag-delete {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.tag:hover .tag-delete {
+  opacity: 1;
+}
+
+.add-tag-btn {
+  background: none;
+  border: 1px dashed #0066cc;
+  color: #0066cc;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .keyboard-hint {
@@ -177,12 +229,7 @@ body {
   font-size: 12px;
   color: #666;
   text-align: center;
-  opacity: 1;
   padding: 4px 8px;
-}
-
-.keyboard-hint-text.show {
-  opacity: 1;
 }
 
 .no-results {
@@ -261,4 +308,107 @@ body {
 .bookmark-info {
   flex: 1;
   min-width: 0; /* 防止子元素溢出 */
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-content h3 {
+  font-size: 14px;
+  color: #333;
+  margin: 0;
+  padding: 0 4px;
+}
+
+.modal-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+#newTagInput {
+  flex: 1;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#newTagInput:focus {
+  border-color: #0066cc;
+}
+
+.modal-buttons {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.modal-buttons button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+#saveTagBtn {
+  background: rgba(232, 240, 254, 0.6);
+  color: #0066cc;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+#saveTagBtn:hover {
+  background: rgba(232, 240, 254, 0.8);
+}
+
+#cancelTagBtn {
+  background: none;
+  color: #333;
+}
+
+#cancelTagBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tag-preview {
+  margin: 10px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-preview .tag {
+  position: relative;
+  padding-right: 24px;
+  margin-right: 0;
 } 
