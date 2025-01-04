@@ -4,7 +4,7 @@
     "description": "扩展名称"
   },
   "extDescription": {
-    "message": "基于AI的书签管理器，自动生成标签并提供智能搜索。隐私政策：https://zuogl.github.io/ZuoglTools/privacy/browser-extensions/SmartBookmarkAssistantZH_CN.html",
+    "message": "基于AI的书签管理器，自动生成标签并提供智能搜索。隐私政策：https://github.com/zuogl/smart-Bookmark/blob/main/privacy.zh_CN.md",
     "description": "扩展描述"
   },
   "searchPlaceholder": {

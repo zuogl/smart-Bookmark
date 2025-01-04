@@ -43,7 +43,7 @@
 
 ## 隐私政策
 
-本扩展不会收集任何个人信息。所有数据都存储在本地,不会上传到任何服务器。详细隐私政策请访问: [隐私政策](https://zuogl.github.io/ZuoglTools/privacy/browser-extensions/SmartBookmarkAssistantZH_CN.html)
+本扩展不会收集任何个人信息。所有数据都存储在本地,不会上传到任何服务器。详细隐私政策请访问: [隐私政策](https://github.com/zuogl/smart-Bookmark/blob/main/privacy.zh_CN.md)
 
 ## 许可证
 
@@ -64,3 +64,8 @@
 - [项目主页](https://github.com/zuogl/smart-Bookmark)
 - [问题反馈](https://github.com/zuogl/smart-Bookmark/issues)
 - 邮箱: zuogl448@gmail.com
+
+
+## Note 
+- 本插件代码由Cursor生成，请勿用于商业用途。
+- 该开源项目中的密钥已经失效，请自行改为自己的密钥。
