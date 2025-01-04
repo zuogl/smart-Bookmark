@@ -30,7 +30,7 @@ const COMMANDS = {
   LATEST: '@latest',
   LATEST_WITH_COUNT: /^@latest\s+(\d+)$/,
   EXPORT: '@export',
-  EXPORT_WITH_FORMAT: /^@export\s+(json|html)$/i,
+  EXPORT_WITH_FORMAT: /^@export\s+(json|html|csv)$/i,
   IMPORT: '@import'
 };
 
@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 处理导出命令
-async function handleExportCommand(format = EXPORT_FORMATS.CSV) {
+async function handleExportCommand(format = EXPORT_FORMATS.JSON) {
   try {
     // 获取所有书签和标签信息
     const bookmarks = await chrome.bookmarks.getTree();
@@ -915,11 +915,11 @@ async function handleExportCommand(format = EXPORT_FORMATS.CSV) {
     
     // 根据不同格式导出
     switch (format.toLowerCase()) {
-      case EXPORT_FORMATS.CSV:
-        exportAsCSV(bookmarkData);
-        break;
       case EXPORT_FORMATS.JSON:
         exportAsJSON(bookmarkData);
+        break;
+      case EXPORT_FORMATS.CSV:
+        exportAsCSV(bookmarkData);
         break;
       case EXPORT_FORMATS.HTML:
         exportAsHTML(bookmarkData);
